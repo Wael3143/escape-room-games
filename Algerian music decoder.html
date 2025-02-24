@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Algerian Music Decoder</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        /* Maintained 80s theme styling */
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            color: #ff00ff;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            touch-action: manipulation;
+        }
+
+        .song-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            max-width: 400px;
+            margin: 20px auto;
+        }
+
+        .song-card {
+            border: 3px solid #00ff00;
+            border-radius: 10px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            aspect-ratio: 1;
+        }
+
+        .song-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+
+        #code-display {
+            font-size: 40px;
+            margin: 20px;
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+            display: none;
+        }
+
+        #hint {
+            border: 2px solid #ff00ff;
+            padding: 10px;
+            margin: 20px auto;
+            max-width: 400px;
+        }
+
+        .checkmark {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 24px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>♪ Algerian Music Decoder ♪</h1>
+    
+    <div id="hint">
+        <p>Solve the musical sequence puzzle:</p>
+        <p>Select songs in chronological order of release</p>
+    </div>
+
+    <div class="song-grid">
+        <div class="song-card" data-year="1996" data-order="3">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="Aicha">
+            <p>Khaled - Aicha</p>
+            <div class="checkmark">✓</div>
+        </div>
+        
+        <div class="song-card" data-year="1985" data-order="1">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="Abdel Kader">
+            <p>Cheb Khaled - Abdel Kader</p>
+            <div class="checkmark">✓</div>
+        </div>
+        
+        <div class="song-card" data-year="2003" data-order="4">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="Raoui">
+            <p>Souad Massi - Raoui</p>
+            <div class="checkmark">✓</div>
+        </div>
+        
+        <div class="song-card" data-year="1993" data-order="2">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="Ya Rayah">
+            <p>Dahmane El Harrachi - Ya Rayah</p>
+            <div class="checkmark">✓</div>
+        </div>
+    </div>
+
+    <div id="code-display"></div>
+
+    <script>
+        // Correct chronological order (oldest to newest):
+        // 1. Abdel Kader (1985)
+        // 2. Ya Rayah (1993)
+        // 3. Aicha (1996)
+        // 4. Raoui (2003)
+        const correctOrder = ['1', '2', '3', '4'];
+        const secretCode = '6533'; // Last digits: 1985(5), 1993(3), 1996(6), 2003(3)
+        let selectedOrder = [];
+        
+        function handleSelection(songCard) {
+            if(selectedOrder.length >= 4) return;
+            
+            // Visual feedback
+            songCard.style.borderColor = '#ff0';
+            const checkmark = songCard.querySelector('.checkmark');
+            checkmark.style.display = 'block';
+            
+            selectedOrder.push(songCard.dataset.order);
+            
+            if(selectedOrder.length === 4) {
+                checkSolution();
+            }
+        }
+
+        function checkSolution() {
+            const codeDisplay = document.getElementById('code-display');
+            
+            if(selectedOrder.join('') === correctOrder.join('')) {
+                codeDisplay.textContent = `CODE: ${secretCode}`;
+                codeDisplay.style.display = 'block';
+                codeDisplay.style.color = '#0f0';
+            } else {
+                codeDisplay.textContent = '❌ ترتيب خاطئ! حاول مرة أخرى ❌';
+                codeDisplay.style.display = 'block';
+                codeDisplay.style.color = '#f00';
+                setTimeout(resetPuzzle, 2000);
+            }
+        }
+
+        function resetPuzzle() {
+            selectedOrder = [];
+            document.querySelectorAll('.song-card').forEach(card => {
+                card.style.borderColor = '#0f0';
+                card.querySelector('.checkmark').style.display = 'none';
+            });
+            document.getElementById('code-display').style.display = 'none';
+        }
+
+        // Event listeners for both touch and click
+        document.querySelectorAll('.song-card').forEach(card => {
+            card.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleSelection(card);
+            });
+            
+            card.addEventListener('click', (e) => {
+                handleSelection(card);
+            });
+        });
+    </script>
+</body>
+</html><ALOASK-SEPARATE-EDITORS><ALOASK-SEPARATE-EDITORS>

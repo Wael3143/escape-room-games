@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vet Rescue Tetris</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #e0f0ff url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="5" y="20" font-size="15">🐾</text><text x="30" y="50" font-size="20">❤️</text><text x="70" y="80" font-size="18">🐶</text></svg>');
+            font-family: Arial, sans-serif;
+            touch-action: manipulation;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+        }
+
+        #game-board {
+            border: 3px solid #4B9CD3;
+            background: rgba(255,255,255,0.9);
+            margin: 10px;
+        }
+
+        .mobile-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+            width: 300px;
+        }
+
+        .control-btn {
+            padding: 15px;
+            font-size: 24px;
+            background: #4B9CD3;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            touch-action: manipulation;
+        }
+
+        #score-display {
+            font-size: 24px;
+            color: #2C5F2D;
+            margin: 10px;
+            padding: 5px 15px;
+            background: white;
+            border-radius: 5px;
+        }
+
+        #code-display {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            background: white;
+            padding: 20px 40px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            display: none;
+        }
+
+        .animal-icon {
+            position: absolute;
+            font-size: 30px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div id="score-display">Rescues: 0</div>
+        <canvas id="game-board"></canvas>
+        <div class="mobile-controls">
+            <button class="control-btn" id="move-left">←</button>
+            <button class="control-btn" id="rotate">↻</button>
+            <button class="control-btn" id="move-right">→</button>
+            <button class="control-btn" id="move-down" style="grid-column: span 3;">↓</button>
+        </div>
+        <div id="code-display"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-board');
+        const ctx = canvas.getContext('2d');
+        const BLOCK_SIZE = 30;
+        const BOARD_WIDTH = 10;
+        const BOARD_HEIGHT = 16;
+        let score = 0;
+        let codeGenerated = false;
+
+        // Veterinary-themed pieces (animals)
+        const SHAPES = [
+            { shape: [[1,1,1,1]], color: '#FF6B6B', emoji: '🐶' }, // Dog
+            { shape: [[1,1],[1,1]], color: '#4ECDC4', emoji: '🐱' }, // Cat
+            { shape: [[1,1,1],[0,1,0]], color: '#45B7D1', emoji: '🐰' }, // Rabbit
+            { shape: [[1,1,1],[1,0,0]], color: '#96CEB4', emoji: '🐹' }, // Hamster
+            { shape: [[1,1,0],[0,1,1]], color: '#FFEEAD', emoji: '🐦' }, // Bird
+        ];
+
+        let board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
+        let currentPiece = null;
+        let currentPosition = { x: 0, y: 0 };
+
+        function initCanvas() {
+            const screenWidth = Math.min(window.innerWidth - 20, 400);
+            canvas.width = BOARD_WIDTH * BLOCK_SIZE;
+            canvas.height = BOARD_HEIGHT * BLOCK_SIZE;
+            canvas.style.width = `${screenWidth}px`;
+            canvas.style.height = `${(BOARD_HEIGHT/BOARD_WIDTH)*screenWidth}px`;
+        }
+
+        function createPiece() {
+            return {...SHAPES[Math.floor(Math.random() * SHAPES.length)]};
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw board
+            board.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value) {
+                        ctx.fillStyle = value.color;
+                        ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE-1, BLOCK_SIZE-1);
+                        ctx.font = '20px Arial';
+                        ctx.fillText(value.emoji, x * BLOCK_SIZE + 5, y * BLOCK_SIZE + 25);
+                    }
+                });
+            });
+
+            // Draw current piece
+            if (currentPiece) {
+                ctx.fillStyle = currentPiece.color;
+                currentPiece.shape.forEach((row, y) => {
+                    row.forEach((value, x) => {
+                        if (value) {
+                            ctx.fillRect(
+                                (currentPosition.x + x) * BLOCK_SIZE,
+                                (currentPosition.y + y) * BLOCK_SIZE,
+                                BLOCK_SIZE-1,
+                                BLOCK_SIZE-1
+                            );
+                            ctx.fillText(currentPiece.emoji, 
+                                (currentPosition.x + x) * BLOCK_SIZE + 5,
+                                (currentPosition.y + y) * BLOCK_SIZE + 25
+                            );
+                        }
+                    });
+                });
+            }
+        }
+
+        function isValidMove(piece, newX, newY) {
+            return piece.shape.every((row, dy) => 
+                row.every((value, dx) => 
+                    !value || 
+                    (newX + dx >= 0 && 
+                     newX + dx < BOARD_WIDTH && 
+                     newY + dy < BOARD_HEIGHT && 
+                     !board[newY + dy][newX + dx])
+                )
+            );
+        }
+
+        function mergePiece() {
+            currentPiece.shape.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value) {
+                        board[currentPosition.y + y][currentPosition.x + x] = currentPiece;
+                    }
+                });
+            });
+        }
+
+        function clearLines() {
+            let linesCleared = 0;
+            for (let y = BOARD_HEIGHT - 1; y >= 0; y--) {
+                if (board[y].every(cell => cell !== 0)) {
+                    board.splice(y, 1);
+                    board.unshift(Array(BOARD_WIDTH).fill(0));
+                    linesCleared++;
+                    y++;
+                }
+            }
+            if (linesCleared > 0) {
+                score += linesCleared * 100;
+                document.getElementById('score-display').textContent = `Rescues: ${score}`;
+                
+                if (score >= 100 && !codeGenerated) {
+                    showCode();
+                    codeGenerated = true;
+                }
+            }
+        }
+
+        function showCode() {
+            const codeDisplay = document.getElementById('code-display');
+            codeDisplay.textContent = 'CODE: 1234';
+            codeDisplay.style.display = 'block';
+            setTimeout(() => {
+                codeDisplay.style.display = 'none';
+            }, 5000);
+        }
+
+        function gameLoop() {
+            currentPosition.y++;
+            if (!isValidMove(currentPiece, currentPosition.x, currentPosition.y)) {
+                currentPosition.y--;
+                mergePiece();
+                clearLines();
+                currentPiece = createPiece();
+                currentPosition = { 
+                    x: Math.floor(BOARD_WIDTH/2 - currentPiece.shape[0].length/2), 
+                    y: 0 
+                };
+                if (!isValidMove(currentPiece, currentPosition.x, currentPosition.y)) {
+                    alert('Game Over! Start again to find the code!');
+                    resetGame();
+                }
+            }
+            draw();
+        }
+
+        function resetGame() {
+            board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
+            score = 0;
+            codeGenerated = false;
+            document.getElementById('score-display').textContent = `Rescues: ${score}`;
+            currentPiece = createPiece();
+            currentPosition = { 
+                x: Math.floor(BOARD_WIDTH/2 - currentPiece.shape[0].length/2), 
+                y: 0 
+            };
+        }
+
+        // Controls
+        document.getElementById('move-left').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (isValidMove(currentPiece, currentPosition.x - 1, currentPosition.y)) {
+                currentPosition.x--;
+            }
+            draw();
+        });
+
+        document.getElementById('move-right').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (isValidMove(currentPiece, currentPosition.x + 1, currentPosition.y)) {
+                currentPosition.x++;
+            }
+            draw();
+        });
+
+        document.getElementById('rotate').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const rotated = currentPiece.shape[0].map((_, i) =>
+                currentPiece.shape.map(row => row[i]).reverse()
+            );
+            const originalShape = currentPiece.shape;
+            currentPiece.shape = rotated;
+            if (!isValidMove(currentPiece, currentPosition.x, currentPosition.y)) {
+                currentPiece.shape = originalShape;
+            }
+            draw();
+        });
+
+        document.getElementById('move-down').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            gameLoop();
+        });
+
+        // Initialize
+        initCanvas();
+        window.addEventListener('resize', initCanvas);
+        currentPiece = createPiece();
+        setInterval(gameLoop, 1000);
+    </script>
+</body>
+</html><ALOASK-SEPARATE-EDITORS><ALOASK-SEPARATE-EDITORS>
